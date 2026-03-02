@@ -18,19 +18,33 @@ Before you begin, ensure you have the following installed:
 
 ## 📦 Installation
 
-1.  **Clone the repository** (if applicable):
+1. **Clone the repository** (if applicable):
+
     ```bash
-    git clone [https://github.com/yourusername/finance-ai-agent.git](https://github.com/yourusername/finance-ai-agent.git)
+    git clone https://github.com/nontster/finance-ai-agent.git
     cd finance-ai-agent
     ```
 
-2.  **Install the required dependencies:**
-    Make sure to install the following Python packages:
+2. **Create and activate a virtual environment (recommended):**
+
     ```bash
-    pip install langchain-core langchain-google-genai langgraph pydantic httpx
+    python -m venv venv
+    
+    # For Mac/Linux:
+    source venv/bin/activate
+    
+    # For Windows:
+    venv\Scripts\activate
     ```
 
-3.  **Set your API Key:**
+3. **Install the required dependencies:**
+    Install all required packages using the provided `requirements.txt`:
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4. **Set your API Key:**
     Export your Google Gemini API key as an environment variable in your terminal:
     ```bash
     export GOOGLE_API_KEY="your_api_key_here"
@@ -61,20 +75,13 @@ Type 'exit' or 'quit' to end the conversation.
 [Retirement Agent uses the 'net_income' from the previous step to give advice]
 
 ## 🧠 System Architecture (LangGraph)
+
 The workflow consists of four main nodes:
 
-guardrail_node (Entry Point): Analyzes the prompt and dictates the route (tax, retirement, or out_of_scope).
-
-tax_agent_node: Extracts income, calculates taxes using deterministic Python logic, and updates the user profile.
-
-retirement_agent_node: Gives advice based on net income. Triggers the tax agent if it detects new income figures in the chat.
-
-fallback_node: Politely declines requests that fall outside the financial scope.
-
-## ⚠️ Important Notes for Development
-SSL Bypass: This code currently contains an httpx.Client hack to bypass SSL verification (verify=False). This is specifically configured for internal workshop environments. Please remove or comment out this section before deploying to a production environment.
-
-Language: The underlying system prompts and AI responses are configured in Thai to best serve the target demographic.
+*   **`guardrail_node` (Entry Point):** Analyzes the user's prompt and dictates the routing logic (tax, retirement, or out-of-scope).
+*   **`tax_agent_node`:** Extracts income details, calculates taxes using deterministic Python logic, and updates the user's financial profile in the shared state.
+*   **`retirement_agent_node`:** Provides retirement advice based on the calculated net income. It can also trigger the `tax_agent_node` if it detects new income figures during the conversation.
+*   **`fallback_node`:** Politely declines requests that fall outside the defined financial scope.
 
 ## Multi-Agent System (Diagram)
 
@@ -124,3 +131,8 @@ graph TD
     class TaxTool,RetTool tool;
     class End endState;
 ```
+
+## ⚠️ Important Notes for Development
+
+*   **🔒 SSL Bypass:** This code currently contains an `httpx.Client` hack to bypass SSL verification (`verify=False`). This is specifically configured for internal workshop environments. **Please remove or comment out this section before deploying to a production environment.**
+*   **🇹🇭 Language:** The underlying system prompts and AI responses are intentionally configured in Thai to best serve the target demographic.
