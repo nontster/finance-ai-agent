@@ -75,3 +75,52 @@ fallback_node: Politely declines requests that fall outside the financial scope.
 SSL Bypass: This code currently contains an httpx.Client hack to bypass SSL verification (verify=False). This is specifically configured for internal workshop environments. Please remove or comment out this section before deploying to a production environment.
 
 Language: The underlying system prompts and AI responses are configured in Thai to best serve the target demographic.
+
+## Multi-Agent System (Diagram)
+
+```mermaid
+graph TD
+    User([👤 User]) -->|Input Message| UI[💬 Chat Interface]
+    UI -->|Updates| State[(🧠 Shared State / Memory)]
+
+    subgraph "Routing & Guard"
+        State -->|Reads Context| Guardrail[🛡️ Intent & Guardrail Node]
+        Guardrail -- "Out of Scope" --> Fallback[🛑 Fallback Node]
+    end
+
+    subgraph "Specialist Nodes"
+        Guardrail -- "Tax Intent" --> Tax[💰 Tax Specialist Node]
+        Guardrail -- "Retirement Intent" --> Retirement[👴 Retirement Planning Node]
+        
+        %% Collaboration Edges (Agent-to-Agent via State)
+        Retirement -- "Missing Net Income (Request Tax Data)" --> Tax
+        Tax -- "Update State & Return Flow" --> Retirement
+    end
+
+    subgraph "Deterministic Tools"
+        Tax -- "Invoke()" --> TaxTool[🧮 Tax Calc Engine]
+        Retirement -- "Invoke()" --> RetTool[📈 Projection Engine]
+        TaxTool -- "Return Exact Values" --> Tax
+        RetTool -- "Return Projections" --> Retirement
+    end
+
+    %% Resolution
+    Fallback -- "Return Response" --> End([🏁 End Computation])
+    Tax -- "Final Answer Complete" --> End
+    Retirement -- "Final Answer Complete" --> End
+    
+    End -.->|Output Message| UI
+
+    %% Styling
+    classDef memory fill:#fff2cc,stroke:#d6b656,stroke-width:2px,color:black;
+    classDef node fill:#cce5ff,stroke:#0066cc,stroke-width:2px,color:black;
+    classDef guard fill:#ffcccb,stroke:#f00,stroke-width:2px,color:black;
+    classDef tool fill:#e0e0e0,stroke:#666,stroke-width:1px,stroke-dasharray: 5 5,color:black;
+    classDef endState fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:black;
+    
+    class State memory;
+    class Tax,Retirement,Fallback node;
+    class Guardrail guard;
+    class TaxTool,RetTool tool;
+    class End endState;
+```
