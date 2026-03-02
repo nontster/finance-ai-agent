@@ -78,10 +78,10 @@ Type 'exit' or 'quit' to end the conversation.
 
 The workflow consists of four main nodes:
 
-*   **`guardrail_node` (Entry Point):** Analyzes the user's prompt and dictates the routing logic (tax, retirement, or out-of-scope).
-*   **`tax_agent_node`:** Extracts income details, calculates taxes using deterministic Python logic, and updates the user's financial profile in the shared state.
-*   **`retirement_agent_node`:** Provides retirement advice based on the calculated net income. It can also trigger the `tax_agent_node` if it detects new income figures during the conversation.
-*   **`fallback_node`:** Politely declines requests that fall outside the defined financial scope.
+* **`guardrail_node` (Entry Point):** Analyzes the user's prompt and dictates the routing logic (tax, retirement, or out-of-scope).
+* **`tax_agent_node`:** Extracts income details, calculates taxes using deterministic Python logic, and updates the user's financial profile in the shared state.
+* **`retirement_agent_node`:** Provides retirement advice based on the calculated net income. It can also trigger the `tax_agent_node` if it detects new income figures during the conversation.
+* **`fallback_node`:** Politely declines requests that fall outside the defined financial scope.
 
 ## Multi-Agent System (Diagram)
 
@@ -134,5 +134,9 @@ graph TD
 
 ## ⚠️ Important Notes for Development
 
-*   **🔒 SSL Bypass:** This code currently contains an `httpx.Client` hack to bypass SSL verification (`verify=False`). This is specifically configured for internal workshop environments. **Please remove or comment out this section before deploying to a production environment.**
-*   **🇹🇭 Language:** The underlying system prompts and AI responses are intentionally configured in Thai to best serve the target demographic.
+* **🔒 SSL Bypass:** This code currently contains an `httpx.Client` hack to bypass SSL verification (`verify=False`). This is specifically configured for internal workshop environments. **Please remove or comment out this section before deploying to a production environment.**
+* **🇹🇭 Language:** The underlying system prompts and AI responses are intentionally configured in Thai to best serve the target demographic.
+
+## 📝 License
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
