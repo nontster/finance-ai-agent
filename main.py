@@ -10,17 +10,17 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph, END
 
 # ==========================================
-# 🚨 HACK: บังคับปิดการตรวจสอบ SSL (Bypass) สำหรับ Workshop
+# 🚨 HACK: Force disable SSL verification (Bypass) for Workshop
 # ==========================================
 original_client_init = httpx.Client.__init__
 
 def unverified_client_init(self, *args, **kwargs):
-    kwargs['verify'] = False # บังคับปิดการตรวจสอบ Certificate
+    kwargs['verify'] = False # Force disable Certificate verification
     original_client_init(self, *args, **kwargs)
 
 httpx.Client.__init__ = unverified_client_init
 
-# ปิด Warning ที่จะแจ้งเตือนว่าเรากำลังเชื่อมต่อแบบไม่ปลอดภัย
+# Suppress warnings about insecure connections
 import warnings
 warnings.filterwarnings("ignore", message="Unverified HTTPS request")
 # ==========================================
@@ -54,19 +54,19 @@ class IntentClassification(BaseModel):
 # 3. Deterministic Tools (Thai Progressive Tax)
 # ==========================================
 def calculate_tax_logic(income: float) -> float:
-    """คำนวณภาษีเงินได้บุคคลธรรมดาตามอัตราก้าวหน้าของประเทศไทย"""
+    """Calculate personal income tax based on Thailand's progressive tax rates"""
     
-    # พิมพ์ Debug Message เพื่อแสดงว่า Tool ถูกเรียกใช้งาน
-    print(f"\n[Debug: 🧮 Tool 'calculate_tax_logic' ถูกเรียกใช้งาน | รายได้เริ่มต้น: {income:,.2f} บาท]")
+    # Print Debug Message to show that the Tool was called
+    print(f"\n[Debug: 🧮 Tool 'calculate_tax_logic' called | Initial income: {income:,.2f} THB]")
     
-    # 1. หักค่าใช้จ่ายเหมาสูงสุด (100,000) และลดหย่อนส่วนตัว (60,000)
-    # เพื่อแปลงรายได้ทั้งปี เป็น "เงินได้สุทธิ"
+    # 1. Deduct maximum standard deduction (100,000) and personal allowance (60,000)
+    # to convert annual income into "net income"
     net_income = max(0, income - 160000)
-    print(f"[Debug: 🧮 เงินได้สุทธิหลังหักลดหย่อนพื้นฐาน: {net_income:,.2f} บาท]")
+    print(f"[Debug: 🧮 Net income after basic deductions: {net_income:,.2f} THB]")
     
     tax = 0.0
     
-    # 2. คำนวณภาษีตามฐานอัตราก้าวหน้าของไทย (ไล่จากบนลงล่าง)
+    # 2. Calculate tax according to Thai progressive rates (top to bottom)
     if net_income > 5000000:
         tax += (net_income - 5000000) * 0.35
         net_income = 5000000
@@ -87,16 +87,16 @@ def calculate_tax_logic(income: float) -> float:
         net_income = 300000
     if net_income > 150000:
         tax += (net_income - 150000) * 0.05
-        # ส่วนที่ต่ำกว่า 150,000 ยกเว้นภาษี (0%)
+        # Portion below 150,000 is tax-exempt (0%)
 
-    print(f"[Debug: 🧮 คำนวณเสร็จสิ้น | ภาษีที่ต้องจ่าย: {tax:,.2f} บาท]\n")
+    print(f"[Debug: 🧮 Calculation complete | Tax payable: {tax:,.2f} THB]\n")
     return tax
 
 # ==========================================
 # 4. Create Nodes (Agent Functions)
 # ==========================================
 def guardrail_node(state: AgentState):
-    """ตรวจสอบขอบเขต"""
+    """Check scope boundaries"""
     print("\n[System: 🛡️ Guardrail is checking intent...]")
     last_message = state["messages"][-1].content
     structured_llm = llm.with_structured_output(IntentClassification)
@@ -113,13 +113,13 @@ def guardrail_node(state: AgentState):
     return {"route_to": result.intent}
 
 def fallback_node(state: AgentState):
-    """ตอบเมื่อหลุด Scope"""
+    """Handle out-of-scope requests"""
     print("[System: 🛑 Routing to Fallback Node]")
     msg = AIMessage(content="ขออภัยครับ ขอบเขตของผมดูแลเฉพาะเรื่อง **การคำนวณภาษี** และ **การวางแผนเกษียณ** เท่านั้นครับ")
-    return {"messages": [msg], "route_to": "end"} # ล้างค่าไม้ผลัด
+    return {"messages": [msg], "route_to": "end"} # Clear routing variable
 
 def tax_agent_node(state: AgentState):
-    """ผู้เชี่ยวชาญด้านภาษี"""
+    """Tax Expert Node"""
     print("[System: 💰 Tax Agent is processing...]")
     profile = state.get("user_profile", {})
     
@@ -128,23 +128,23 @@ def tax_agent_node(state: AgentState):
     ตอบสั้นๆ กระชับ เป็นภาษาไทย
     """)
     
-    # 1. ป้องกัน Error จาก List: เราจะหาข้อความล่าสุดที่เป็นของ Human (User) เท่านั้น
+    # 1. Prevent List errors: We will only find the latest Human (User) message
     last_human_msg_content = ""
     for msg in reversed(state["messages"]):
         if isinstance(msg, HumanMessage):
             last_human_msg_content = msg.content
             break
             
-    # ถ้า content ดันเป็น list ให้ดึงมาแค่ text
+    # If content happens to be a list, extract only the text
     if isinstance(last_human_msg_content, list):
         last_human_msg_content = " ".join([i.get("text", "") for i in last_human_msg_content if isinstance(i, dict)])
         
     last_msg_str = str(last_human_msg_content).lower()
     
-    # 2. ดึงตัวเลขจากข้อความแบบอัตโนมัติ (รองรับ 2,000,000 หรือเลขใดๆ)
+    # 2. Extract numbers from text automatically (supports 2,000,000 or any number)
     numbers = re.findall(r'\d+[\d,]*', last_msg_str)
     if numbers:
-        # เอาเลขชุดแรกมาลบลูกน้ำออก แล้วแปลงเป็นตัวเลข
+        # Take the first set of numbers, remove commas, and convert to float
         income_val = float(numbers[0].replace(',', ''))
         profile["income"] = income_val
         profile["tax"] = calculate_tax_logic(income_val)
@@ -152,20 +152,20 @@ def tax_agent_node(state: AgentState):
     
     response = llm.invoke([system_msg] + state["messages"])
     
-    # 3. ส่งงานกลับแบบ Silent Helper (ไม่เอา messages ยัดใส่ state)
+    # 3. Send back as a Silent Helper (do not append messages to state)
     if state.get("route_to") == "need_tax_data":
         print("[System: 🤝 Tax Agent finished calculation. Returning data to Retirement Agent]")
         return {"user_profile": profile, "route_to": "retirement"}
         
-    # ถ้า User ถามภาษีตรงๆ ค่อยให้ AI ตอบปกติ
+    # If User asks about tax directly, let the AI answer normally
     return {"messages": [response], "user_profile": profile, "route_to": "end"}
 
 def retirement_agent_node(state: AgentState):
-    """ผู้เชี่ยวชาญด้านเกษียณ"""
+    """Retirement Expert Node"""
     print("[System: 👴 Retirement Agent is processing...]")
     profile = state.get("user_profile", {})
     
-    # 1. ดึงข้อความล่าสุดของผู้ใช้
+    # 1. Retrieve the user's latest message
     last_human_msg_content = ""
     for msg in reversed(state["messages"]):
         if isinstance(msg, HumanMessage):
@@ -178,22 +178,22 @@ def retirement_agent_node(state: AgentState):
     last_msg_str = str(last_human_msg_content).lower()
     
     # ========================================================
-    # 🚨 [จุดที่เพิ่มใหม่] State Invalidation: ตรวจจับการเปลี่ยนตัวเลขรายได้
+    # 🚨 [New Addition] State Invalidation: Detect changes in income numbers
     # ========================================================
     numbers = re.findall(r'\d+[\d,]*', last_msg_str)
     if numbers:
-        # ดึงตัวเลขแรกที่เจอในประโยค (ตั้งสมมติฐานว่าเป็นรายได้)
+        # Extract the first number found in the sentence (assume it's the income)
         potential_income = float(numbers[0].replace(',', ''))
         
-        # เช็ค 2 เงื่อนไข: 
-        # 1. เป็นตัวเลขที่มากพอจะเป็นรายได้ (เช่น > 10,000) ป้องกันดึงเลขผิดเช่น อายุ
-        # 2. ตัวเลขนี้ "ไม่ตรง" กับ income เดิมใน Memory
+        # Check 2 conditions: 
+        # 1. The number is large enough to be an income (e.g., > 10,000) to prevent mistakenly extracting age
+        # 2. This number does "not match" the existing income in Memory
         if potential_income > 10000 and potential_income != profile.get("income", 0):
-            print(f"[System: 💡 พบข้อมูลรายได้ใหม่ ({potential_income:,.2f} บาท) ส่งให้ Tax Agent คำนวณภาษีใหม่!]")
+            print(f"[System: 💡 Found new income data ({potential_income:,.2f} THB). Routing to Tax Agent for recalculation!]")
             return {"route_to": "need_tax_data"}
     # ========================================================
 
-    # ถ้าข้อมูลรายได้หลังหักภาษียังไม่มี (กรณีเข้าแชทมาครั้งแรก)
+    # If net income data is not yet available (e.g., first time entering the chat)
     if "net_income" not in profile:
         print("[System: 🔄 Retirement Agent needs net income. Requesting collaboration from Tax Agent!]")
         return {"route_to": "need_tax_data"}
@@ -220,7 +220,7 @@ workflow.add_node("fallback", fallback_node)
 
 workflow.set_entry_point("guardrail")
 
-# เงื่อนไขจาก Guardrail
+# Conditions from Guardrail
 def guardrail_route(state: AgentState):
     route = state.get("route_to")
     if route == "tax": return "tax"
@@ -233,12 +233,12 @@ workflow.add_conditional_edges(
     {"tax": "tax", "retirement": "retirement", "fallback": "fallback"}
 )
 
-# เงื่อนไขการส่งต่อระหว่าง Agent หรือจบการทำงาน
+# Conditions for routing between Agents or ending the workflow
 def collaboration_route(state: AgentState):
     route = state.get("route_to")
     if route == "need_tax_data": return "tax"
     if route == "retirement": return "retirement"
-    return END # ถ้าเป็น "end" หรืออื่นๆ ให้จบการทำงาน
+    return END # If it's "end" or others, terminate the workflow
 
 workflow.add_conditional_edges("retirement", collaboration_route, {"tax": "tax", END: END})
 workflow.add_conditional_edges("tax", collaboration_route, {"retirement": "retirement", END: END})
@@ -276,18 +276,18 @@ if __name__ == "__main__":
         # Get the latest AI response
         raw_response = result_state["messages"][-1].content
         
-        # --- [ส่วนที่แก้ไข] ตรวจสอบและสกัดเฉพาะข้อความ ---
+        # --- [Modified Section] Check and extract only text ---
         ai_text = ""
         if isinstance(raw_response, str):
-            # ถ้าเป็น Text ธรรมดาอยู่แล้ว ก็ใช้ได้เลย
+            # If it's already plain text, use it directly
             ai_text = raw_response
         elif isinstance(raw_response, list):
-            # ถ้าเป็น List โครงสร้างซับซ้อน ให้ดึงเฉพาะที่มี 'text'
+            # If it's a complex List structure, extract only the parts containing 'text'
             for item in raw_response:
                 if isinstance(item, dict) and 'text' in item:
                     ai_text += item['text']
         else:
-            ai_text = str(raw_response) # ดักไว้เผื่อเป็น Format แปลกๆ
+            ai_text = str(raw_response) # Catch-all for unusual formats
             
         print(f"\n🤖 AI:\n{ai_text}")
         
